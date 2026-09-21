@@ -13,7 +13,6 @@ from .models import ProbeResult
 
 
 async def ping_probe(host: str, timeout: float = 2.0) -> ProbeResult:
-    started = time.perf_counter()
     system = platform.system().lower()
     args = ["ping", "-c", "1", "-W", str(max(1, int(timeout))), host]
     if system == "windows":
@@ -102,11 +101,11 @@ async def default_gateway() -> str | None:
     if system == "darwin":
         cmd = ["route", "-n", "get", "default"]
     elif system == "windows":
-        cmd = [
-            "powershell", "-NoProfile", "-Command",
+        command = (
             "(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | "
-            "Select-Object -First 1).NextHop",
-        ]
+            "Select-Object -First 1).NextHop"
+        )
+        cmd = ["powershell", "-NoProfile", "-Command", command]
     else:
         cmd = ["ip", "route", "show", "default"]
 
