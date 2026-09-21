@@ -1,19 +1,37 @@
+# /etc/systemd/system/tashevnet.service
+#
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin tashevnet
+#   sudo mkdir -p /etc/tashevnet && sudo cp config.example.yaml /etc/tashevnet/config.yaml
+#   sudo systemctl daemon-reload && sudo systemctl enable --now tashevnet
+#   journalctl -u tashevnet -f
+#
+# Secrets go to /etc/tashevnet/tashevnet.env (chmod 600), one per line:
+#   TASHEVNET_TELEGRAM_BOT_TOKEN=123456789:AA...
+#   TASHEVNET_TELEGRAM_CHAT_ID=123456789
 [Unit]
-Description=TashevNet network watchdog
+Description=TashevNet network flight recorder and VPN watchdog
+Documentation=https://github.com/tashev11/tashevnet
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=tashevnet
+Group=tashevnet
 WorkingDirectory=/opt/tashevnet
-Environment=TASHEVNET_CONFIG=/etc/tashevnet/config.yaml
+Environment=TASHEVNET_DB_PATH=/var/lib/tashevnet/tashevnet.db
 EnvironmentFile=-/etc/tashevnet/tashevnet.env
-ExecStart=/opt/tashevnet/.venv/bin/tashevnet run
+ExecStart=/opt/tashevnet/.venv/bin/tashevnet --config /etc/tashevnet/config.yaml run
 Restart=always
 RestartSec=5
+# Creates /var/lib/tashevnet owned by the service user.
+StateDirectory=tashevnet
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+# If ping reports "Operation not permitted" on your distribution, allow raw ICMP:
+# AmbientCapabilities=CAP_NET_RAW
 
 [Install]
 WantedBy=multi-user.target
