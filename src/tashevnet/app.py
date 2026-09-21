@@ -20,6 +20,7 @@ def create_app(config: AppConfig) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         await store.init()
+        await store.prune(config.monitor.retention_days)
         tasks.append(asyncio.create_task(engine.monitor_loop(), name="monitor"))
         if config.speed.enabled:
             tasks.append(asyncio.create_task(engine.speed_loop(), name="speed"))
