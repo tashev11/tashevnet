@@ -9,10 +9,16 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tashev11/tashevnet/actions"><img alt="CI" src="https://github.com/tashev11/tashevnet/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-blue">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-green">
-  <img alt="Status" src="https://img.shields.io/badge/status-MVP-orange">
+  <img alt="Status" src="https://img.shields.io/badge/status-v0.1%20MVP-orange">
+</p>
+
+<p align="center">
+  <a href="docs/README_RU.md">Русская документация</a> ·
+  <a href="INSTALL.md">Install</a> ·
+  <a href="docs/TELEGRAM.md">Telegram</a> ·
+  <a href="ROADMAP.md">Roadmap</a>
 </p>
 
 TashevNet is a cross-platform local agent that continuously checks the whole connectivity chain — **device → router → ISP → DNS → Internet → VPN → target services** — records what happened, explains the likely cause and can try to recover automatically.
@@ -26,19 +32,21 @@ Most tools answer only one question: “is this host alive?” TashevNet correla
 ## MVP features
 
 - Internet health checks with multiple independent targets.
+- Physical/default gateway detection, including macOS behind a full-tunnel VPN.
 - DNS, TCP, HTTP and ICMP probes.
-- Latency / degradation detection.
-- VPN interface watchdog.
-- Optional expected VPN public-IP check.
-- VPN leak detection.
-- Configurable VPN self-heal command.
-- SQLite incident history (“network flight recorder”).
-- Local FastAPI dashboard and JSON API.
+- WAN/gateway latency degradation detection without confusing slow HTTP with line latency.
+- VPN route/interface watchdog.
+- Optional expected VPN public-IP check and VPN leak detection.
+- Configurable VPN self-heal command with cooldown.
+- Bounded periodic speed sampling that runs independently from health probes.
+- SQLite network flight recorder with snapshot throttling and retention.
+- Responsive local FastAPI dashboard and JSON API.
 - Telegram notifications.
 - Telegram commands: `/status`, `/vpn`, `/events`, `/ping`.
-- Docker image and Compose example.
-- macOS / Windows / Linux architecture.
-- CI tests and Ruff linting.
+- Helper command to discover a Telegram `chat_id`.
+- Docker / Compose examples.
+- macOS / Windows / Linux architecture and auto-start examples.
+- Ruff + pytest workflow and local `make check`.
 
 ## Quick start
 
@@ -49,24 +57,26 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 cp config.example.yaml config.yaml
+tashevnet doctor
 tashevnet run
 ```
 
-Open **http://127.0.0.1:8765**.
+Open **http://127.0.0.1:8765**. If that port is already occupied, change `app.port` in `config.yaml`.
 
 ### Telegram in 60 seconds
 
 1. Create a bot with **@BotFather**.
 2. Send any message to your new bot.
-3. Set two environment variables:
+3. Set the token and discover the chat ID:
 
 ```bash
 export TASHEVNET_TELEGRAM_BOT_TOKEN="123456:ABC..."
+tashevnet telegram-id
 export TASHEVNET_TELEGRAM_CHAT_ID="123456789"
 ```
 
 4. In `config.yaml` set `telegram.enabled: true`.
-5. Restart TashevNet and send `/status` to the bot.
+5. Run `tashevnet doctor`, restart TashevNet and send `/status` to the bot.
 
 Full guide: [docs/TELEGRAM.md](docs/TELEGRAM.md).
 
@@ -74,14 +84,14 @@ Full guide: [docs/TELEGRAM.md](docs/TELEGRAM.md).
 
 | Situation | Interpretation |
 |---|---|
-| Router unavailable | local network / gateway issue |
-| Router OK, Internet probes fail | ISP / WAN outage |
+| Physical gateway unavailable | local network / router issue |
+| Gateway OK, Internet probes fail | ISP / WAN outage |
 | IP connectivity OK, DNS fails | DNS incident |
 | DNS OK, HTTP fails | HTTP / service path problem |
-| Internet OK, VPN interface missing | VPN disconnected |
-| VPN interface exists, public IP unexpected | possible VPN leak |
-| Latency exceeds threshold | degraded connection |
-| Everything returns after incident | recovery event |
+| Internet OK, VPN route/interface missing | VPN disconnected |
+| VPN active, public IP unexpected | possible VPN leak |
+| WAN/gateway latency exceeds threshold | degraded line |
+| State returns to normal | recovery event |
 
 ## Architecture
 
@@ -92,13 +102,14 @@ flowchart LR
   A --> D[DNS probes]
   A --> H[HTTP probes]
   A --> V[VPN watchdog]
+  A --> S[Bounded speed sampler]
   A --> DB[(SQLite flight recorder)]
   A --> API[FastAPI dashboard]
   A --> TG[Telegram Bot]
   A --> SH[Self-heal runner]
 ```
 
-The local agent is intentionally useful without a cloud account. A future optional Cloud Watcher will receive heartbeats so a remote service can detect a machine that lost Internet and therefore cannot notify Telegram itself.
+The local agent is intentionally useful without a cloud account. A future optional **Cloud Watcher** will receive heartbeats so a remote service can detect a machine that lost Internet and therefore cannot notify Telegram itself.
 
 ## Configuration
 
@@ -107,16 +118,22 @@ Copy `config.example.yaml` to `config.yaml`. Secrets should be supplied via envi
 Important settings:
 
 - `monitor.interval_seconds`
+- `monitor.snapshot_interval_seconds`
+- `monitor.retention_days`
 - `monitor.degraded_latency_ms`
-- `monitor.gateway`
 - `monitor.vpn_required`
 - `monitor.vpn_expected_ip`
 - `monitor.self_heal_vpn_command`
+- `speed.interval_minutes`
 - `telegram.enabled`
+
+## Verification
+
+The v0.1 MVP has been linted and tested locally on macOS, including a live diagnostic cycle and live FastAPI/dashboard checks. The GitHub Actions workflow is included and ready; repository runner execution currently depends on the account's GitHub Actions availability.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Near-term goals include packet-loss windows, native speed tests, route snapshots, auto-discovery of the default gateway, system tray apps, signed installers and the optional Cloud Watcher.
+See [ROADMAP.md](ROADMAP.md). Open roadmap work is also tracked in GitHub Issues.
 
 ## Security
 
