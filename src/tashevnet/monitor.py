@@ -21,7 +21,6 @@ class MonitorEngine:
         self.store = store
         self.current: Snapshot | None = None
         self.last_speed = SpeedResult()
-        self._last_speed_monotonic = 0.0
         self._last_heal_monotonic = 0.0
         self.telegram = TelegramBot(config.telegram, self.status, self.store.recent_events)
 
@@ -52,17 +51,6 @@ class MonitorEngine:
             self.config.monitor.vpn_interface_patterns
         )
         public_ip = await fetch_public_ip(self.config.monitor.public_ip_url)
-
-        now_mono = time.monotonic()
-        interval = max(1, self.config.speed.interval_minutes) * 60
-        if (
-            self.config.speed.enabled
-            and now_mono - self._last_speed_monotonic >= interval
-            and any(item.ok for item in probes if item.name.startswith("internet:"))
-        ):
-            self.last_speed = await measure_speed(self.config.speed)
-            self._last_speed_monotonic = now_mono
-
         health, reason = classify(
             probes,
             self.config.monitor,
@@ -119,3 +107,20 @@ class MonitorEngine:
                 await self.telegram.send(f"⚠️ TashevNet monitor error: {exc}")
             elapsed = time.monotonic() - started
             await asyncio.sleep(max(0.2, self.config.monitor.interval_seconds - elapsed))
+
+    async def speed_loop(self) -> None:
+        await asyncio.sleep(5)
+        interval = max(1, self.config.speed.interval_minutes) * 60
+        while True:
+            try:
+                if self.current is not None and self.current.health.value != "DOWN":
+                    self.last_speed = await measure_speed(self.config.speed)
+                    self.current.speed = self.last_speed
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                self.last_speed = SpeedResult(
+                    measured_at=datetime.now(UTC).isoformat(),
+                    error=str(exc),
+                )
+            await asyncio.sleep(interval)
