@@ -4,13 +4,30 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tashevnet"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Local network flight recorder, VPN watchdog and self-healing connectivity monitor."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [{name = "Rinat Tashev"}]
-keywords = ["network-monitoring", "vpn", "telegram-bot", "uptime", "self-healing"]
+keywords = ["network-monitoring", "vpn", "vpn-watchdog", "telegram-bot", "uptime", "self-healing"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Web Environment",
+  "Framework :: FastAPI",
+  "Intended Audience :: End Users/Desktop",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: System :: Monitoring",
+  "Topic :: System :: Networking :: Monitoring",
+]
 dependencies = [
   "fastapi>=0.115,<1",
   "uvicorn>=0.30,<1",
@@ -21,12 +38,26 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<9", "pytest-asyncio>=0.24,<1", "ruff>=0.8,<1"]
 
+[project.urls]
+Homepage = "https://github.com/tashev11/tashevnet"
+Documentation = "https://github.com/tashev11/tashevnet#readme"
+Issues = "https://github.com/tashev11/tashevnet/issues"
+Changelog = "https://github.com/tashev11/tashevnet/blob/main/CHANGELOG.md"
+
 [project.scripts]
 tashevnet = "tashevnet.cli:main"
+
+[tool.hatch.version]
+path = "src/tashevnet/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tashevnet"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 100
@@ -34,6 +65,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 ignore = ["BLE001"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/tashevnet"]
