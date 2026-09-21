@@ -35,3 +35,13 @@ def test_vpn_leak_when_expected_ip_differs():
     health, reason = classify(probes, cfg, vpn_connected=True, public_ip="1.2.3.4")
     assert health == Health.DOWN
     assert "leak" in reason.lower()
+
+
+def test_slow_http_does_not_masquerade_as_line_latency():
+    probes = [
+        p("internet:1.1.1.1", True, 12),
+        p("dns:github.com", True, 30),
+        p("http:github.com", True, 1900),
+    ]
+    health, _ = classify(probes, MonitorConfig(), vpn_connected=False, public_ip="1.2.3.4")
+    assert health == Health.UP
