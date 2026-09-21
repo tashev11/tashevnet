@@ -27,6 +27,8 @@ class SpeedConfig:
 @dataclass(slots=True)
 class MonitorConfig:
     interval_seconds: int = 5
+    snapshot_interval_seconds: int = 60
+    retention_days: int = 30
     degraded_latency_ms: float = 250
     internet_hosts: list[str] = field(default_factory=lambda: ["1.1.1.1", "8.8.8.8"])
     dns_names: list[str] = field(default_factory=lambda: ["cloudflare.com", "github.com"])
