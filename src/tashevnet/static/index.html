@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TashevNet</title>
+  <style>
+    :root{color-scheme:dark;--bg:#080b12;--panel:#111827;--line:#243047;--text:#eef2ff;--muted:#93a4bd;--green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#60a5fa}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#15213b 0,transparent 30%),var(--bg);font:15px/1.5 Inter,system-ui,sans-serif;color:var(--text)}
+    main{max-width:1180px;margin:auto;padding:34px 20px 60px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px}
+    h1{font-size:28px;margin:0}.tag{color:var(--muted)}.dot{width:11px;height:11px;border-radius:50%;display:inline-block;background:#64748b;margin-right:8px}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:rgba(17,24,39,.9);border:1px solid var(--line);border-radius:18px;padding:18px}
+    .label{text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-size:11px}.value{font-size:24px;font-weight:700;margin-top:8px;word-break:break-word}
+    .wide{grid-column:span 2}.events{margin-top:14px}.event{display:grid;grid-template-columns:150px 110px 1fr;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+    .muted{color:var(--muted)}button{background:#1d4ed8;color:white;border:0;border-radius:10px;padding:9px 13px;cursor:pointer}
+    @media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.wide{grid-column:span 2}.event{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+    @media(max-width:520px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div><h1>◉ TashevNet</h1><div class="tag">Network flight recorder · VPN watchdog</div></div>
+    <div><span id="dot" class="dot"></span><span id="summary">Starting…</span> <button onclick="checkNow()">Check now</button></div>
+  </div>
+  <section class="grid">
+    <div class="card"><div class="label">Internet</div><div class="value" id="health">—</div><div class="muted" id="reason">Waiting for first probe</div></div>
+    <div class="card"><div class="label">VPN</div><div class="value" id="vpn">—</div><div class="muted" id="vpnif">Interface unknown</div></div>
+    <div class="card"><div class="label">Public IP</div><div class="value" id="ip">—</div><div class="muted" id="gateway">Gateway —</div></div>
+    <div class="card"><div class="label">Speed</div><div class="value" id="speed">—</div><div class="muted" id="speedtime">Hourly sample</div></div>
+    <div class="card wide"><div class="label">Probe health</div><div id="probes" class="events muted">Waiting…</div></div>
+    <div class="card wide"><div class="label">Recent incidents</div><div id="events" class="events muted">No incidents yet</div></div>
+  </section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function paint(s){
+  if(!s)return;
+  $("health").textContent=s.health;$("reason").textContent=s.reason;
+  $("vpn").textContent=s.vpn_connected?"ON":"OFF";$("vpnif").textContent=s.vpn_interface||"No VPN interface";
+  $("ip").textContent=s.public_ip||"unknown";$("gateway").textContent="Gateway "+(s.gateway||"unknown");
+  let sp=s.speed||{};$("speed").textContent=sp.download_mbps==null?"—":("↓ "+sp.download_mbps+" · ↑ "+sp.upload_mbps+" Mbps");
+  $("speedtime").textContent=sp.measured_at?new Date(sp.measured_at).toLocaleString():(sp.error||"Hourly sample");
+  let colors={UP:"var(--green)",DEGRADED:"var(--yellow)",DOWN:"var(--red)",UNKNOWN:"#64748b"};
+  $("dot").style.background=colors[s.health]||"#64748b";$("summary").textContent=s.health;
+  $("probes").innerHTML=(s.probes||[]).map(p=>`<div class="event"><span>${p.ok?"✅":"❌"} ${esc(p.name)}</span><span>${p.latency_ms==null?"—":p.latency_ms+" ms"}</span><span>${esc(p.detail)}</span></div>`).join("");
+}
+async function load(){
+  try{
+    let r=await fetch("/api/status"),d=await r.json();paint(d.snapshot);
+    let e=await fetch("/api/events?limit=12"),j=await e.json();
+    $("events").innerHTML=j.events.length?j.events.map(x=>`<div class="event"><span>${new Date(x.timestamp).toLocaleString()}</span><strong>${esc(x.health)}</strong><span>${esc(x.reason)}</span></div>`).join(""):"No incidents yet";
+  }catch(e){$("summary").textContent="Dashboard disconnected"}
+}
+async function checkNow(){$("summary").textContent="Checking…";await fetch("/api/check",{method:"POST"});await load()}
+load();setInterval(load,5000);
+</script>
+</body>
+</html>
