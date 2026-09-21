@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .models import Snapshot
@@ -59,6 +60,17 @@ class Store:
                 f"INSERT INTO {table}(timestamp, health, reason, payload) VALUES (?, ?, ?, ?)",
                 (snapshot.timestamp, snapshot.health.value, snapshot.reason, payload),
             )
+
+    async def prune(self, retention_days: int) -> None:
+        if retention_days <= 0:
+            return
+        cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).isoformat()
+        await asyncio.to_thread(self._prune_sync, cutoff)
+
+    def _prune_sync(self, cutoff: str) -> None:
+        with self._connect() as db:
+            db.execute("DELETE FROM snapshots WHERE timestamp < ?", (cutoff,))
+            db.execute("DELETE FROM events WHERE timestamp < ?", (cutoff,))
 
     async def recent_events(self, limit: int = 20) -> list[dict]:
         return await asyncio.to_thread(self._recent_events_sync, limit)
