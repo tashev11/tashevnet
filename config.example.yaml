@@ -5,6 +5,8 @@ app:
 
 monitor:
   interval_seconds: 5
+  snapshot_interval_seconds: 60
+  retention_days: 30
   degraded_latency_ms: 250
   internet_hosts:
     - "1.1.1.1"
