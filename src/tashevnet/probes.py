@@ -99,11 +99,11 @@ async def fetch_public_ip(url: str, timeout: float = 4.0) -> str | None:
 async def default_gateway() -> str | None:
     system = platform.system().lower()
     if system == "darwin":
-        cmd = ["route", "-n", "get", "default"]
+        cmd = ["netstat", "-rn", "-f", "inet"]
     elif system == "windows":
         command = (
             "(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Sort-Object RouteMetric | "
-            "Select-Object -First 1).NextHop"
+            "Where-Object {$_.NextHop -ne '0.0.0.0'} | Select-Object -First 1).NextHop"
         )
         cmd = ["powershell", "-NoProfile", "-Command", command]
     else:
@@ -116,12 +116,14 @@ async def default_gateway() -> str | None:
         stdout, _ = await proc.communicate()
         text = stdout.decode(errors="replace")
         if system == "darwin":
-            match = re.search(r"gateway:\s*([^\s]+)", text)
-        elif system == "windows":
+            matches = re.findall(
+                r"^default\s+(\d{1,3}(?:\.\d{1,3}){3})\s", text, flags=re.MULTILINE
+            )
+            return matches[0] if matches else None
+        if system == "windows":
             value = text.strip().splitlines()
             return value[-1].strip() if value else None
-        else:
-            match = re.search(r"default\s+via\s+([^\s]+)", text)
+        match = re.search(r"default\s+via\s+([^\s]+)", text)
         return match.group(1) if match else None
     except Exception:
         return None
