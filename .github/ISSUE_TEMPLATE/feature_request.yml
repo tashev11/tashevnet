@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a monitoring, VPN, notification or UX improvement
+title: "[Feature] "
+labels: []
+body:
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case
+      description: What problem should TashevNet solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Diagnostics, VPN, Telegram, Dashboard, Speed, Cloud Watcher, Packaging, Other]
