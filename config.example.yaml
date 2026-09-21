@@ -28,6 +28,15 @@ monitor:
     - "ppp"
   # Example: "wg-quick up wg0" or your VPN client's reconnect command.
   self_heal_vpn_command: ""
+  self_heal_cooldown_seconds: 60
+
+speed:
+  enabled: true
+  interval_minutes: 60
+  # Keep samples small so monitoring does not consume the connection itself.
+  download_bytes: 2000000
+  upload_bytes: 500000
+  base_url: "https://speed.cloudflare.com"
 
 telegram:
   enabled: false
