@@ -11,7 +11,9 @@ async def active_network_interfaces() -> list[str]:
         cmd = ["ifconfig"]
     elif system == "windows":
         cmd = [
-            "powershell", "-NoProfile", "-Command",
+            "powershell",
+            "-NoProfile",
+            "-Command",
             "Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -ExpandProperty Name",
         ]
     else:
@@ -38,13 +40,47 @@ async def active_network_interfaces() -> list[str]:
         return []
 
 
+async def default_route_interface() -> str | None:
+    system = platform.system().lower()
+    if system == "darwin":
+        cmd = ["route", "-n", "get", "default"]
+    elif system == "linux":
+        cmd = ["ip", "route", "show", "default"]
+    else:
+        return None
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, _ = await proc.communicate()
+        text = stdout.decode(errors="replace")
+        if system == "darwin":
+            match = re.search(r"interface:\s*([^\s]+)", text)
+        else:
+            match = re.search(r"\bdev\s+([^\s]+)", text)
+        return match.group(1) if match else None
+    except Exception:
+        return None
+
+
+def _matches(interface: str, patterns: list[str]) -> bool:
+    low = interface.lower()
+    return any(pattern.lower() in low for pattern in patterns)
+
+
 async def detect_vpn(patterns: list[str]) -> tuple[bool, str | None]:
+    routed = await default_route_interface()
+    if routed and _matches(routed, patterns):
+        return True, routed
+
     interfaces = await active_network_interfaces()
-    for pattern in patterns:
-        p = pattern.lower()
-        for interface in interfaces:
-            if p in interface.lower():
-                return True, interface
+    system = platform.system().lower()
+    for interface in interfaces:
+        if system == "darwin" and interface.lower().startswith("utun"):
+            continue
+        if _matches(interface, patterns):
+            return True, interface
     return False, None
 
 
