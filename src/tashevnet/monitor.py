@@ -22,6 +22,7 @@ class MonitorEngine:
         self.current: Snapshot | None = None
         self.last_speed = SpeedResult()
         self._last_heal_monotonic = 0.0
+        self._last_snapshot_save_monotonic = 0.0
         self.telegram = TelegramBot(config.telegram, self.status, self.store.recent_events)
 
     def status(self) -> dict[str, Any]:
@@ -89,7 +90,17 @@ class MonitorEngine:
             previous.health != snapshot.health or previous.reason != snapshot.reason
         )
         self.current = snapshot
-        await self.store.save_snapshot(snapshot)
+
+        now = time.monotonic()
+        snapshot_due = (
+            self._last_snapshot_save_monotonic == 0.0
+            or now - self._last_snapshot_save_monotonic
+            >= max(1, self.config.monitor.snapshot_interval_seconds)
+        )
+        if snapshot_due:
+            await self.store.save_snapshot(snapshot)
+            self._last_snapshot_save_monotonic = now
+
         if changed:
             await self.store.save_snapshot(snapshot, event=True)
             await self.telegram.notify_snapshot(snapshot)
