@@ -1,0 +1,16 @@
+services:
+  tashevnet:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      TASHEVNET_CONFIG: /app/config.yaml
+      TASHEVNET_TELEGRAM_BOT_TOKEN: ${TASHEVNET_TELEGRAM_BOT_TOKEN:-}
+      TASHEVNET_TELEGRAM_CHAT_ID: ${TASHEVNET_TELEGRAM_CHAT_ID:-}
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - tashevnet-data:/root/.tashevnet
+
+volumes:
+  tashevnet-data:
