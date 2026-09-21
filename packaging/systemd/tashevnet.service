@@ -1,0 +1,19 @@
+[Unit]
+Description=TashevNet network watchdog
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tashevnet
+WorkingDirectory=/opt/tashevnet
+Environment=TASHEVNET_CONFIG=/etc/tashevnet/config.yaml
+EnvironmentFile=-/etc/tashevnet/tashevnet.env
+ExecStart=/opt/tashevnet/.venv/bin/tashevnet run
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
