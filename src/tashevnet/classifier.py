@@ -43,9 +43,10 @@ def classify(
     ):
         return Health.DOWN, "Possible VPN leak: public IP does not match expected VPN IP"
 
-    latencies = [item.latency_ms for item in probes if item.ok and item.latency_ms is not None]
+    line_probes = [item for item in gateway + internet if item.ok and item.latency_ms is not None]
+    latencies = [item.latency_ms for item in line_probes]
     if latencies and max(latencies) >= config.degraded_latency_ms:
-        return Health.DEGRADED, f"High latency detected: {max(latencies):.0f} ms"
+        return Health.DEGRADED, f"High line latency detected: {max(latencies):.0f} ms"
 
     if any(item.ok for item in internet + dns + http):
         return Health.UP, "Connectivity is healthy"
