@@ -1,60 +1,491 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>TashevNet</title>
-  <style>
-    :root{color-scheme:dark;--bg:#080b12;--panel:#111827;--line:#243047;--text:#eef2ff;--muted:#93a4bd;--green:#22c55e;--yellow:#eab308;--red:#ef4444;--blue:#60a5fa}
-    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 0,#15213b 0,transparent 30%),var(--bg);font:15px/1.5 Inter,system-ui,sans-serif;color:var(--text)}
-    main{max-width:1180px;margin:auto;padding:34px 20px 60px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px}
-    h1{font-size:28px;margin:0}.tag{color:var(--muted)}.dot{width:11px;height:11px;border-radius:50%;display:inline-block;background:#64748b;margin-right:8px}
-    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:rgba(17,24,39,.9);border:1px solid var(--line);border-radius:18px;padding:18px}
-    .label{text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-size:11px}.value{font-size:24px;font-weight:700;margin-top:8px;word-break:break-word}
-    .wide{grid-column:span 2}.events{margin-top:14px}.event{display:grid;grid-template-columns:150px 110px 1fr;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
-    .muted{color:var(--muted)}button{background:#1d4ed8;color:white;border:0;border-radius:10px;padding:9px 13px;cursor:pointer}
-    @media(max-width:800px){.grid{grid-template-columns:1fr 1fr}.wide{grid-column:span 2}.event{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
-    @media(max-width:520px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>TashevNet</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='30' fill='%23f25c05'/%3E%3Cpath d='M22 70h24l12-30 14 54 12-36 8 12h14' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  /* Everything is local: the dashboard must keep working while the Internet is down. */
+  :root {
+    --paper: #f3f5f7;
+    --panel: #ffffff;
+    --ink: #15202b;
+    --muted: #5b6875;
+    --rule: #d5dce3;
+    --brand: #f25c05; /* flight-recorder orange, used for the mark and focus only */
+    --up: #1a8f50;
+    --warn: #a87600;
+    --down: #cf3027;
+    --idle: #8a96a3;
+    --display: "DIN Alternate", "Bahnschrift", "D-DIN", "DIN 2014", "Barlow Semi Condensed",
+      system-ui, sans-serif;
+    --text: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  /* Dark theme follows the system; ?theme=dark or ?theme=light forces one. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #101923;
+      --panel: #16212c;
+      --ink: #e6edf3;
+      --muted: #93a1af;
+      --rule: #263342;
+      --up: #3ccb7f;
+      --warn: #f2c14e;
+      --down: #ff6b5e;
+      --idle: #6f7d8b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #101923;
+    --panel: #16212c;
+    --ink: #e6edf3;
+    --muted: #93a1af;
+    --rule: #263342;
+    --up: #3ccb7f;
+    --warn: #f2c14e;
+    --down: #ff6b5e;
+    --idle: #6f7d8b;
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.5 var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* Top bar */
+  .bar { display: flex; align-items: center; gap: 16px; padding: 18px 0; }
+  .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; margin-right: auto; }
+  .mark svg { width: 30px; height: 30px; flex: none; }
+  .mark span { font: 600 21px/1 var(--display); letter-spacing: .01em; }
+  .fresh { margin: 0; color: var(--muted); font-size: 14px; text-align: right; }
+  .fresh[data-tone="warn"] { color: var(--warn); }
+  .fresh[data-tone="bad"] { color: var(--down); }
+  .btn {
+    flex: none; border: 0; border-radius: 999px; padding: 9px 18px; cursor: pointer;
+    background: var(--ink); color: var(--paper); font-weight: 600; font-size: 15px;
+  }
+  .btn:disabled { opacity: .55; cursor: progress; }
+
+  /* The verdict and the path it is about */
+  .hero { padding: 36px 0 44px; border-bottom: 1px solid var(--rule); }
+  .state {
+    margin: 0; font: 600 clamp(52px, 11vw, 96px)/.92 var(--display);
+    letter-spacing: -.015em; color: var(--c, var(--muted));
+  }
+  [data-health="UP"] { --c: var(--up); }
+  [data-health="DEGRADED"] { --c: var(--warn); }
+  [data-health="DOWN"] { --c: var(--down); }
+  .reason { margin: 14px 0 0; font-size: clamp(18px, 2.4vw, 22px); line-height: 1.35; max-width: 42ch; }
+  .since { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+  .since strong { color: var(--ink); font-weight: 600; }
+
+  .path { list-style: none; margin: 44px 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, 1fr); }
+  .path li { position: relative; padding-top: 34px; text-align: center; --c: var(--idle); }
+  .path li::before {
+    content: ""; position: absolute; top: 10px; left: -50%; width: 100%; height: 3px;
+    background: var(--c); opacity: .9;
+  }
+  .path li:first-child::before { display: none; }
+  .path li[data-s="off"]::before,
+  .path li[data-s="ignored"]::before {
+    background: repeating-linear-gradient(90deg, var(--idle) 0 6px, transparent 6px 11px);
+  }
+  .path .dot {
+    position: absolute; top: 0; left: 50%; width: 23px; height: 23px; margin-left: -11.5px;
+    border-radius: 50%; border: 3px solid var(--c); background: var(--paper); z-index: 1;
+  }
+  .path li[data-s="ok"] { --c: var(--up); }
+  .path li[data-s="bad"] { --c: var(--down); }
+  .path li[data-s="ok"] .dot, .path li[data-s="bad"] .dot { background: var(--c); }
+  .path li[data-s="bad"] .dot { animation: pulse 1.6s ease-out infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--down) 55%, transparent); }
+    100% { box-shadow: 0 0 0 14px transparent; }
+  }
+  @media (prefers-reduced-motion: reduce) { .path li[data-s="bad"] .dot { animation: none; } }
+  .path .name { display: block; font: 600 17px/1.2 var(--display); }
+  .path .sub { display: block; margin-top: 3px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .path li[data-s="bad"] .sub { color: var(--down); }
+
+  /* Details */
+  h2 { font: 600 20px/1.2 var(--display); margin: 0 0 14px; }
+  .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; padding: 36px 0; border-bottom: 1px solid var(--rule); }
+  dl { margin: 0; }
+  dl div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--rule); }
+  dl div:first-child { border-top: 0; padding-top: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; text-align: right; }
+  dd small { display: block; color: var(--muted); font-size: 13px; }
+  .link { border: 0; background: none; padding: 0; margin-left: 8px; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 14px; }
+  .note { margin: 16px 0 0; padding: 12px 14px; border-left: 3px solid var(--brand); background: var(--panel); font-size: 14px; color: var(--muted); }
+
+  .events { list-style: none; margin: 0; padding: 0; }
+  .events li { display: grid; grid-template-columns: 5.5em minmax(0, 1fr); gap: 4px 16px; padding: 10px 0 10px 14px; border-left: 3px solid var(--c, var(--idle)); }
+  .events li + li { margin-top: 6px; }
+  .events time { color: var(--muted); font-size: 14px; padding-top: 1px; }
+  .events b { font-weight: 600; }
+  .events span { display: block; color: var(--muted); font-size: 14px; }
+  .empty { color: var(--muted); margin: 0; }
+
+  .checks { padding: 36px 0 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 14px; padding: 0 12px 8px 0; }
+  td { padding: 10px 12px 10px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+  td.ok::before, td.bad::before, td.skip::before {
+    content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 9px;
+    background: var(--c); border: 2px solid var(--c);
+  }
+  td.ok { --c: var(--up); }
+  td.bad { --c: var(--down); }
+  td.skip { --c: var(--idle); }
+  td.skip::before { background: transparent; }
+  .num { text-align: right; white-space: nowrap; }
+  .detail { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+
+  footer { padding: 24px 0 40px; color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 760px) {
+    .split { grid-template-columns: 1fr; gap: 36px; }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding: 0 16px; }
+    .bar { flex-wrap: wrap; }
+    .fresh { order: 3; width: 100%; text-align: left; }
+    .path { grid-template-columns: 1fr; margin-top: 32px; }
+    .path li { text-align: left; padding: 0 0 22px 40px; }
+    .path li::before { top: -22px; left: 10px; width: 3px; height: 22px; }
+    .path li[data-s="off"]::before, .path li[data-s="ignored"]::before {
+      background: repeating-linear-gradient(180deg, var(--idle) 0 5px, transparent 5px 9px);
+    }
+    .path .dot { left: 0; margin-left: 0; }
+    .path .sub { display: inline; margin-left: 8px; }
+    thead { display: none; }
+    tr { display: grid; grid-template-columns: 1fr auto; border-top: 1px solid var(--rule); padding: 8px 0; }
+    td { border: 0; padding: 2px 0; }
+    td.method { display: none; }
+    td.detail { grid-column: 1 / -1; }
+  }
+</style>
 </head>
 <body>
-<main>
-  <div class="top">
-    <div><h1>◉ TashevNet</h1><div class="tag">Network flight recorder · VPN watchdog</div></div>
-    <div><span id="dot" class="dot"></span><span id="summary">Starting…</span> <button onclick="checkNow()">Check now</button></div>
-  </div>
-  <section class="grid">
-    <div class="card"><div class="label">Internet</div><div class="value" id="health">—</div><div class="muted" id="reason">Waiting for first probe</div></div>
-    <div class="card"><div class="label">VPN</div><div class="value" id="vpn">—</div><div class="muted" id="vpnif">Interface unknown</div></div>
-    <div class="card"><div class="label">Public IP</div><div class="value" id="ip">—</div><div class="muted" id="gateway">Gateway —</div></div>
-    <div class="card"><div class="label">Speed</div><div class="value" id="speed">—</div><div class="muted" id="speedtime">Hourly sample</div></div>
-    <div class="card wide"><div class="label">Probe health</div><div id="probes" class="events muted">Waiting…</div></div>
-    <div class="card wide"><div class="label">Recent incidents</div><div id="events" class="events muted">No incidents yet</div></div>
-  </section>
-</main>
+<div class="wrap">
+  <header class="bar">
+    <a class="mark" href="/" aria-label="TashevNet">
+      <svg viewBox="0 0 128 128" aria-hidden="true"><rect width="128" height="128" rx="30" fill="#f25c05"/><path d="M22 70h24l12-30 14 54 12-36 8 12h14" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>TashevNet</span>
+    </a>
+    <p class="fresh" id="fresh">Waiting for the first check</p>
+    <button class="btn" id="check" type="button">Check now</button>
+  </header>
+
+  <main>
+    <section class="hero" aria-live="polite">
+      <p class="state" id="state">Checking</p>
+      <p class="reason" id="reason">The first check runs right after the agent starts.</p>
+      <p class="since" id="since"></p>
+      <ol class="path" id="path" aria-label="Connection path">
+        <li data-node="device" data-s="ok"><span class="dot"></span><span class="name">This computer</span><span class="sub">you are here</span></li>
+        <li data-node="router"><span class="dot"></span><span class="name">Router</span><span class="sub">—</span></li>
+        <li data-node="vpn"><span class="dot"></span><span class="name">VPN</span><span class="sub">—</span></li>
+        <li data-node="internet"><span class="dot"></span><span class="name">Internet</span><span class="sub">—</span></li>
+        <li data-node="dns"><span class="dot"></span><span class="name">DNS</span><span class="sub">—</span></li>
+        <li data-node="web"><span class="dot"></span><span class="name">Websites</span><span class="sub">—</span></li>
+      </ol>
+    </section>
+
+    <div class="split">
+      <section aria-labelledby="line-title">
+        <h2 id="line-title">Line</h2>
+        <dl>
+          <div><dt>Latency</dt><dd id="latency">—</dd></div>
+          <div><dt>Public IP</dt><dd><span id="ip">hidden</span><button class="link" id="reveal" type="button">Show</button></dd></div>
+          <div><dt>Speed</dt><dd id="speed">—</dd></div>
+          <div><dt>Telegram alerts</dt><dd id="telegram">—</dd></div>
+        </dl>
+        <p class="note" id="note" hidden></p>
+      </section>
+      <section aria-labelledby="events-title">
+        <h2 id="events-title">Incidents</h2>
+        <ol class="events" id="events"></ol>
+        <p class="empty" id="no-events">No incidents yet. When the connection changes state, it is recorded here.</p>
+      </section>
+    </div>
+
+    <section class="checks" aria-labelledby="checks-title">
+      <h2 id="checks-title">Last check</h2>
+      <table>
+        <thead><tr><th>Check</th><th class="method">How</th><th class="num">Time</th><th>Details</th></tr></thead>
+        <tbody id="probes"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer id="footer">TashevNet runs on this computer and keeps its history there. <a href="/api/docs">API reference</a></footer>
+</div>
+
 <script>
-const $=id=>document.getElementById(id);
-function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function paint(s){
-  if(!s)return;
-  $("health").textContent=s.health;$("reason").textContent=s.reason;
-  $("vpn").textContent=s.vpn_connected?"ON":"OFF";$("vpnif").textContent=s.vpn_interface||"No VPN interface";
-  $("ip").textContent=s.public_ip||"unknown";$("gateway").textContent="Gateway "+(s.gateway||"unknown");
-  let sp=s.speed||{};$("speed").textContent=sp.download_mbps==null?"—":("↓ "+sp.download_mbps+" · ↑ "+sp.upload_mbps+" Mbps");
-  $("speedtime").textContent=sp.measured_at?new Date(sp.measured_at).toLocaleString():(sp.error||"Hourly sample");
-  let colors={UP:"var(--green)",DEGRADED:"var(--yellow)",DOWN:"var(--red)",UNKNOWN:"#64748b"};
-  $("dot").style.background=colors[s.health]||"#64748b";$("summary").textContent=s.health;
-  $("probes").innerHTML=(s.probes||[]).map(p=>`<div class="event"><span>${p.ok?"✅":"❌"} ${esc(p.name)}</span><span>${p.latency_ms==null?"—":p.latency_ms+" ms"}</span><span>${esc(p.detail)}</span></div>`).join("");
+const $ = (id) => document.getElementById(id);
+const forcedTheme = new URLSearchParams(location.search).get("theme");
+if (forcedTheme === "dark" || forcedTheme === "light") document.documentElement.dataset.theme = forcedTheme;
+const WORDS = { UP: "Online", DEGRADED: "Degraded", DOWN: "Offline", UNKNOWN: "Unknown" };
+const METHODS = { icmp: "ping", https: "HTTPS", http: "HTTP", dns: "DNS", tcp: "TCP" };
+const KINDS = { gateway: "Router", internet: "Internet", dns: "DNS", http: "Website" };
+let showIp = false;
+try { showIp = localStorage.getItem("tashevnet.showIp") === "1"; } catch (e) { /* private mode */ }
+let latest = null;
+
+function clock(iso, withDate) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  const sameDay = d.toDateString() === new Date().toDateString();
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (sameDay && !withDate) return time;
+  return d.toLocaleDateString([], { day: "numeric", month: "short" }) + ", " + time;
 }
-async function load(){
-  try{
-    let r=await fetch("/api/status"),d=await r.json();paint(d.snapshot);
-    let e=await fetch("/api/events?limit=12"),j=await e.json();
-    $("events").innerHTML=j.events.length?j.events.map(x=>`<div class="event"><span>${new Date(x.timestamp).toLocaleString()}</span><strong>${esc(x.health)}</strong><span>${esc(x.reason)}</span></div>`).join(""):"No incidents yet";
-  }catch(e){$("summary").textContent="Dashboard disconnected"}
+
+function duration(seconds) {
+  if (seconds == null) return "";
+  let s = Math.round(seconds);
+  if (s < 60) return s + " s";
+  let m = Math.floor(s / 60); s %= 60;
+  if (m < 60) return s ? `${m} min ${s} s` : `${m} min`;
+  let h = Math.floor(m / 60); m %= 60;
+  if (h < 24) return m ? `${h} h ${m} min` : `${h} h`;
+  const d = Math.floor(h / 24); h %= 24;
+  return h ? `${d} d ${h} h` : `${d} d`;
 }
-async function checkNow(){$("summary").textContent="Checking…";await fetch("/api/check",{method:"POST"});await load()}
-load();setInterval(load,5000);
+
+function group(probes, prefix) {
+  return probes.filter((p) => p.name.startsWith(prefix + ":"));
+}
+
+function layer(list) {
+  if (!list.length) return "off";
+  if (list.some((p) => p.ok)) return "ok";
+  if (list.every((p) => p.meta && p.meta.ignored)) return "ignored";
+  return "bad";
+}
+
+function setNode(key, state, sub) {
+  const node = document.querySelector(`[data-node="${key}"]`);
+  node.dataset.s = state;
+  node.querySelector(".sub").textContent = sub;
+}
+
+function renderPath(snap, settings) {
+  const probes = snap.probes || [];
+  const router = group(probes, "gateway");
+  const routerState = layer(router);
+  setNode("router", routerState,
+    !snap.gateway ? "not found" : routerState === "ignored" ? `${snap.gateway}, no ping reply` : snap.gateway);
+
+  let vpnState = "off", vpnSub = "off";
+  if (snap.vpn_connected) {
+    vpnState = "ok";
+    vpnSub = snap.vpn_interface + (snap.vpn_routed ? "" : ", split tunnel");
+  } else if (settings && settings.vpn_required) {
+    vpnState = "bad"; vpnSub = "required, not connected";
+  }
+  setNode("vpn", vpnState, vpnSub);
+
+  const internet = group(probes, "internet");
+  const via = new Set(internet.filter((p) => p.ok).map((p) => METHODS[p.meta.method] || p.meta.method));
+  const internetState = layer(internet);
+  setNode("internet", internetState,
+    internetState === "ok" ? `answers ${[...via].join(" and ")}` : internetState === "bad" ? "no answer" : "not checked");
+
+  const dns = group(probes, "dns");
+  const okNames = dns.filter((p) => p.ok).length;
+  setNode("dns", layer(dns), dns.length ? `${okNames} of ${dns.length} names resolve` : "not checked");
+
+  const web = group(probes, "http");
+  const firstOk = web.find((p) => p.ok);
+  setNode("web", layer(web), web.length ? (firstOk ? firstOk.detail : "no answer") : "not checked");
+}
+
+function renderLine(status) {
+  const snap = status.snapshot, settings = status.settings || {};
+  if (snap.line_latency_ms == null) {
+    $("latency").textContent = "—";
+  } else {
+    $("latency").innerHTML = "";
+    $("latency").append(`${Math.round(snap.line_latency_ms)} ms`);
+    const small = document.createElement("small");
+    small.textContent = `median of recent checks, alert at ${Math.round(settings.degraded_latency_ms || 250)} ms`;
+    $("latency").append(small);
+  }
+  const ip = snap.public_ip;
+  $("ip").textContent = !ip ? "unknown" : showIp ? ip : "hidden";
+  $("reveal").hidden = !ip;
+  $("reveal").textContent = showIp ? "Hide" : "Show";
+
+  const speed = snap.speed || {};
+  if (speed.download_mbps != null) {
+    $("speed").innerHTML = "";
+    $("speed").append(`↓ ${speed.download_mbps} Mbps, ↑ ${speed.upload_mbps} Mbps`);
+    const small = document.createElement("small");
+    small.textContent = `sampled at ${clock(speed.measured_at)}`;
+    $("speed").append(small);
+  } else if (speed.error) {
+    $("speed").textContent = `last sample failed: ${speed.error}`;
+  } else {
+    $("speed").textContent = settings.speed_enabled === false ? "sampling is off" : "first sample is on its way";
+  }
+
+  const tg = status.telegram || {};
+  $("telegram").textContent = !tg.enabled ? "off"
+    : tg.pending_alerts ? `${tg.pending_alerts} waiting for the network` : "on";
+
+  const path = snap.path || {};
+  const note = $("note");
+  if (path.tcp_local || path.icmp_spoofed) {
+    note.hidden = false;
+    note.textContent = "Something on this computer, most likely a proxy-type VPN client, answers "
+      + (path.icmp_spoofed ? "ping and connections" : "connections")
+      + " by itself. TashevNet therefore trusts only real HTTPS answers from the Internet.";
+  } else {
+    note.hidden = true;
+  }
+}
+
+function renderProbes(snap) {
+  const body = $("probes");
+  body.innerHTML = "";
+  for (const probe of snap.probes || []) {
+    const [kind, ...rest] = probe.name.split(":");
+    const row = document.createElement("tr");
+    const status = probe.meta && probe.meta.ignored ? "skip" : probe.ok ? "ok" : "bad";
+    const cells = [
+      [status, `${KINDS[kind] || kind} ${rest.join(":")}`],
+      ["method", METHODS[probe.meta && probe.meta.method] || ""],
+      ["num", probe.latency_ms == null ? "—" : `${Math.round(probe.latency_ms)} ms`],
+      ["detail", probe.detail || ""],
+    ];
+    for (const [cls, text] of cells) {
+      const td = document.createElement("td");
+      td.className = cls;
+      td.textContent = text;
+      row.append(td);
+    }
+    body.append(row);
+  }
+}
+
+function render(status) {
+  latest = status;
+  const snap = status.snapshot, state = status.state;
+  if (status.version) $("footer").firstChild.textContent = `TashevNet ${status.version} runs on this computer and keeps its history there. `;
+  if (!snap) return;
+  const health = state ? state.health : snap.health;
+  const hero = document.querySelector(".hero");
+  hero.dataset.health = health;
+  $("state").textContent = WORDS[health] || health;
+  $("reason").textContent = state ? state.reason : snap.reason;
+  const since = $("since");
+  since.innerHTML = "";
+  if (state && state.since) {
+    since.append("since ");
+    const strong = document.createElement("strong");
+    strong.textContent = clock(state.since);
+    since.append(strong);
+  }
+  if (state && snap.health !== state.health) {
+    since.append(`${state.since ? ". " : ""}The last check says ${WORDS[snap.health] || snap.health}; waiting for the next one to confirm.`);
+  }
+  renderPath(snap, status.settings);
+  renderLine(status);
+  renderProbes(snap);
+
+  const age = status.last_check_seconds_ago;
+  const limit = Math.max(60, ((status.settings || {}).interval_seconds || 5) * 6);
+  if (age == null) setFresh("Waiting for the first check");
+  else if (age > limit) setFresh(`No check for ${Math.round(age)} s. The monitor may be stuck; restart it.`, "warn");
+  else setFresh(age < 2 ? "Checked just now" : `Checked ${Math.round(age)} s ago`);
+}
+
+function setFresh(text, tone) {
+  $("fresh").textContent = text;
+  if (tone) $("fresh").dataset.tone = tone; else delete $("fresh").dataset.tone;
+}
+
+function renderEvents(events) {
+  const list = $("events");
+  list.innerHTML = "";
+  $("no-events").hidden = events.length > 0;
+  for (const event of events) {
+    const item = document.createElement("li");
+    item.dataset.health = event.health;
+    item.style.setProperty("--c", event.health === "UP" ? "var(--up)" : event.health === "DOWN" ? "var(--down)" : event.health === "DEGRADED" ? "var(--warn)" : "var(--idle)");
+    const time = document.createElement("time");
+    time.dateTime = event.timestamp;
+    time.textContent = clock(event.timestamp);
+    const text = document.createElement("div");
+    const title = document.createElement("b");
+    const detail = document.createElement("span");
+    if (event.health === "UP" && event.previous) {
+      title.textContent = event.duration_seconds != null ? `Back online after ${duration(event.duration_seconds)}` : "Back online";
+      detail.textContent = `Was ${(WORDS[event.previous.health] || event.previous.health).toLowerCase()}: ${event.previous.reason}`;
+    } else {
+      title.textContent = WORDS[event.health] || event.health;
+      detail.textContent = event.reason;
+    }
+    text.append(title, detail);
+    item.append(time, text);
+    list.append(item);
+  }
+}
+
+async function load() {
+  try {
+    const [status, events] = await Promise.all([
+      fetch("/api/status").then((r) => r.json()),
+      fetch("/api/events?limit=12").then((r) => r.json()),
+    ]);
+    render(status);
+    renderEvents(events.events || []);
+  } catch (e) {
+    setFresh("Can't reach the TashevNet agent. Is `tashevnet run` still running?", "bad");
+  }
+}
+
+$("check").addEventListener("click", async () => {
+  const button = $("check");
+  button.disabled = true;
+  button.textContent = "Checking…";
+  try {
+    const response = await fetch("/api/check", { method: "POST", headers: { "X-TashevNet": "check" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    render(await response.json());
+    await load();
+  } catch (e) {
+    setFresh(`The check did not run: ${e.message}`, "bad");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Check now";
+  }
+});
+
+$("reveal").addEventListener("click", () => {
+  showIp = !showIp;
+  try { localStorage.setItem("tashevnet.showIp", showIp ? "1" : "0"); } catch (e) { /* ignore */ }
+  if (latest) renderLine(latest);
+});
+
+load();
+setInterval(load, 5000);
 </script>
 </body>
 </html>

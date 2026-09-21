@@ -3,28 +3,27 @@
 Updated: 2026-09-21
 
 ## Completed
-- Public GitHub repository created: `tashev11/tashevnet`.
-- Core WAN/DNS/HTTP/physical-gateway probes.
-- macOS physical gateway detection behind a full-tunnel VPN.
-- VPN route/interface watchdog and expected public-IP leak check.
-- VPN self-heal command with cooldown.
-- Bounded speed sampling isolated from the primary health loop.
-- SQLite flight recorder with throttled snapshots and retention.
-- FastAPI dashboard/API.
-- Telegram notifications, authorized commands and `telegram-id` helper.
-- Docker, macOS launchd, Linux systemd and Windows auto-start examples.
-- Ruff + pytest tests and GitHub Actions workflow.
-- Initial GitHub issues for v0.2/v0.3.
-- Live macOS diagnostic validated: Internet UP, gateway and VPN route detected.
-- Live FastAPI validation on temporary port: `/healthz`, `/api/status` and dashboard HTTP 200.
-- Local checks: Ruff passed; 7 pytest tests passed.
+- v0.1.0 published: router, Internet, DNS and HTTP checks, VPN watchdog, SQLite history,
+  dashboard, Telegram, self-heal, packaging examples.
+- v0.1.1 reliability release:
+  - check loop survives outages; Telegram alerts are queued and delivered after recovery;
+  - canary 203.0.113.1 detects proxy-type VPN clients that answer TCP/ICMP locally;
+    Internet checks count trusted ping or real HTTPS answers only;
+  - state tracker: incident after 2 of 3 bad checks, recovery after 3 clean checks,
+    outage durations in events and alerts;
+  - hourly retention, strict config validation, heal timeout, `/healthz` 503 when stale;
+  - Docker image fixed (loopback-only publish, ping/ip, non-root, health check);
+  - redesigned dashboard, new logo, README in English and Russian.
+- Verified on macOS (Python 3.12 and 3.14): ruff clean, 84 tests, live checks behind a
+  proxy-type VPN.
 
-## Known environment note
-- GitHub Actions runner jobs currently do not start because the GitHub account is locked for a billing issue. The workflow itself is committed; local verification is green.
+## Not verified
+- Docker image and systemd unit on a real Linux server.
+- Windows code paths (PowerShell route/adapter lookup, localized ping output).
 
 ## Next
-1. Publish/tag v0.1.0.
-2. Connect a real Telegram bot token/chat ID when available.
-3. Implement rolling packet loss, jitter and incident duration (Issue #1).
-4. Design Cloud Watcher heartbeat/offline alerts (Issue #2).
-5. Add provider-aware VPN adapters (Issue #3).
+1. Run the Docker image and the systemd unit on a Linux host.
+2. Test on Windows.
+3. Rolling packet loss and jitter (Issue #1).
+4. Cloud Watcher heartbeats for real offline alerts (Issue #2).
+5. Provider-aware VPN adapters (Issue #3).

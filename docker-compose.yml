@@ -1,16 +1,24 @@
+# Linux servers: watches the server's own connection. On macOS and Windows, Docker runs in
+# a virtual machine and cannot see the host's router or VPN; install natively there.
+#
+#   cp config.example.yaml config.yaml    # must exist before the first start
+#   docker compose up -d --build
+#   open http://127.0.0.1:8765
 services:
   tashevnet:
     build: .
+    image: tashevnet:local
     restart: unless-stopped
     ports:
-      - "8765:8765"
+      # Published on the host's loopback only: the dashboard has no login.
+      - "127.0.0.1:8765:8765"
     environment:
-      TASHEVNET_CONFIG: /app/config.yaml
+      # Read from your shell or from a .env file next to this file.
       TASHEVNET_TELEGRAM_BOT_TOKEN: ${TASHEVNET_TELEGRAM_BOT_TOKEN:-}
       TASHEVNET_TELEGRAM_CHAT_ID: ${TASHEVNET_TELEGRAM_CHAT_ID:-}
     volumes:
       - ./config.yaml:/app/config.yaml:ro
-      - tashevnet-data:/root/.tashevnet
+      - tashevnet-data:/data
 
 volumes:
   tashevnet-data:
