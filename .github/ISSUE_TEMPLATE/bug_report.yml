@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a reproducible TashevNet problem
+title: "[Bug] "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include what you expected and what TashevNet reported.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Windows, Linux, Docker, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Paste sanitized output from tashevnet doctor / tashevnet once. Remove IPs or secrets if needed.
+  - type: checkboxes
+    id: secret
+    attributes:
+      label: Safety
+      options:
+        - label: I removed bot tokens, VPN credentials and other secrets.
+          required: true
