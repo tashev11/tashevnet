@@ -1,0 +1,39 @@
+app:
+  host: "127.0.0.1"
+  port: 8765
+  db_path: "~/.tashevnet/tashevnet.db"
+
+monitor:
+  interval_seconds: 5
+  degraded_latency_ms: 250
+  internet_hosts:
+    - "1.1.1.1"
+    - "8.8.8.8"
+  dns_names:
+    - "cloudflare.com"
+    - "github.com"
+  http_urls:
+    - "https://www.cloudflare.com/cdn-cgi/trace"
+  public_ip_url: "https://api.ipify.org"
+  gateway: ""
+  vpn_required: false
+  vpn_expected_ip: ""
+  vpn_interface_patterns:
+    - "utun"
+    - "tun"
+    - "tap"
+    - "wg"
+    - "wireguard"
+    - "tailscale"
+    - "ppp"
+  # Example: "wg-quick up wg0" or your VPN client's reconnect command.
+  self_heal_vpn_command: ""
+
+telegram:
+  enabled: false
+  polling: true
+  # Prefer environment variables instead:
+  # TASHEVNET_TELEGRAM_BOT_TOKEN
+  # TASHEVNET_TELEGRAM_CHAT_ID
+  bot_token: ""
+  chat_id: ""
