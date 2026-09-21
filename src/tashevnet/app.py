@@ -21,6 +21,8 @@ def create_app(config: AppConfig) -> FastAPI:
     async def lifespan(_: FastAPI):
         await store.init()
         tasks.append(asyncio.create_task(engine.monitor_loop(), name="monitor"))
+        if config.speed.enabled:
+            tasks.append(asyncio.create_task(engine.speed_loop(), name="speed"))
         if engine.telegram.ready and config.telegram.polling:
             tasks.append(asyncio.create_task(engine.telegram.polling_loop(), name="telegram"))
         try:
