@@ -1,14 +1,23 @@
+# TashevNet settings. Copy to config.yaml; every key is optional.
+# A misspelled key is reported as an error instead of being ignored.
+
 app:
-  host: "127.0.0.1"
+  host: "127.0.0.1"          # the dashboard has no login: keep it on localhost
   port: 8765
   db_path: "~/.tashevnet/tashevnet.db"
 
 monitor:
   interval_seconds: 5
-  snapshot_interval_seconds: 60
-  retention_days: 30
-  degraded_latency_ms: 250
-  internet_hosts:
+  snapshot_interval_seconds: 60   # how often a full check is written to history
+  retention_days: 30              # older history is deleted every hour; 0 keeps everything
+
+  # A problem becomes an incident when it shows up in `alert_after_checks` of the last
+  # checks; recovery needs `recover_after_checks` clean checks in a row.
+  alert_after_checks: 2
+  recover_after_checks: 3
+  degraded_latency_ms: 250        # median line latency that counts as degraded
+
+  internet_hosts:                 # public IPs that answer both ping and HTTPS
     - "1.1.1.1"
     - "8.8.8.8"
   dns_names:
@@ -17,34 +26,40 @@ monitor:
   http_urls:
     - "https://www.cloudflare.com/cdn-cgi/trace"
   public_ip_url: "https://api.ipify.org"
-  gateway: ""
-  vpn_required: false
-  vpn_expected_ip: ""
+  public_ip_interval_seconds: 30  # also refreshed whenever the VPN state changes
+  gateway: ""                     # empty = detect the router automatically
+
+  vpn_required: false             # true: a missing VPN is an outage
+  vpn_expected_ip: ""             # your VPN exit IP; another public IP means a leak
   vpn_interface_patterns:
     - "utun"
     - "tun"
     - "tap"
     - "wg"
     - "wireguard"
-    - "tailscale"
+    - "wintun"
+    - "openvpn"
+    - "tailscale"                 # remove if you use Tailscale without an exit node
     - "ppp"
-  # Example: "wg-quick up wg0" or your VPN client's reconnect command.
+
+  # Runs when vpn_required is true and the VPN is missing, e.g. "wg-quick up wg0".
+  # It runs with TashevNet's own permissions and is stopped after the timeout.
   self_heal_vpn_command: ""
   self_heal_cooldown_seconds: 60
+  self_heal_timeout_seconds: 60
 
 speed:
   enabled: true
   interval_minutes: 60
-  # Keep samples small so monitoring does not consume the connection itself.
+  # One sample moves about 2.5 MB (roughly 60 MB a day). Turn it off on metered links.
   download_bytes: 2000000
   upload_bytes: 500000
   base_url: "https://speed.cloudflare.com"
 
 telegram:
   enabled: false
-  polling: true
-  # Prefer environment variables instead:
-  # TASHEVNET_TELEGRAM_BOT_TOKEN
-  # TASHEVNET_TELEGRAM_CHAT_ID
+  polling: true                   # answer /status, /vpn, /events, /ping
+  # Prefer the environment variables TASHEVNET_TELEGRAM_BOT_TOKEN and
+  # TASHEVNET_TELEGRAM_CHAT_ID over writing secrets into this file.
   bot_token: ""
   chat_id: ""
